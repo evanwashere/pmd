@@ -1,0 +1,16 @@
+[Unit]
+Description=pmd
+StartLimitIntervalSec=0
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User=evan
+Type=simple
+RestartSec=1
+Restart=always
+WorkingDirectory=/home
+ExecStart=/usr/bin/env /usr/local/bin/pmd daemon
+
+[Install]
+WantedBy=multi-user.target
