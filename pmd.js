@@ -40,6 +40,13 @@ await ({
     return this.list();
   },
 
+  async restart(args) {
+    const [query] = args;
+    await fetch(`http://localhost/restart`, { dispatcher, method: 'POST', body: JSON.stringify({ query }) });
+
+    return this.list();
+  },
+
   async env(args) {
     const [name, subcommand, env_name, env_value] = args;
 
@@ -180,7 +187,7 @@ await ({
 
             if (!c) return new Response(null, { status: 404 });
             if (c.enabled) return new Response(null, { status: 409 });
-            c.enabled = true; loop(c); return new Response(null, { status: 204 });
+            await edit(() => c.enabled = true); loop(c); return new Response(null, { status: 204 });
           },
 
           async stop() {
@@ -189,7 +196,17 @@ await ({
 
             if (!c) return new Response(null, { status: 404 });
             if (!c.enabled) return new Response(null, { status: 404 });
-            c.enabled = false; processes.get(c)?.kill(); return new Response(null, { status: 204 });
+            await edit(() => c.enabled = false); processes.get(c)?.kill(); return new Response(null, { status: 204 });
+          },
+
+          async restart() {
+            const { query } = await req.json();
+            const c = config.find((c, offset) => query === c.name || (1 + offset) === Number(query));
+
+            if (!c) return new Response(null, { status: 404 });
+            if (c.enabled) processes.get(c)?.kill(); else { await edit(() => c.enabled = true); loop(c); }
+
+            return new Response(null, { status: 204 });
           },
 
           async env_set() {
@@ -267,6 +284,7 @@ await ({
           'POST /stop': 'stop',
           'POST /start': 'start',
           'POST /env_set': 'env_set',
+          'POST /restart': 'restart',
           'POST /env_list': 'env_list',
           'POST /env_unset': 'env_unset',
         })[`${req.method} ${url.pathname}`]]();
@@ -289,5 +307,6 @@ await ({
   start: 'start',
   status: 'list',
   daemon: 'service',
+  restart: 'restart',
   service: 'service',
 })[name]](rest);
